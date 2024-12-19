@@ -1,35 +1,71 @@
-import dash
-from dash import html, dcc
-import plotly.graph_objects as go
-from VPNmonitor import VPNMonitor
+"""
+VPN Dashboard Application
+------------------------
+This application provides a web-based dashboard for monitoring VPN connections.
+It uses Dash for the web interface and runs inside a Docker container.
 
-# Initialize the VPN monitor
-vpn_monitor = VPNMonitor(use_mock=True)  # Set to False when using real AWS
+Configuration:
+- Internal container port: 8050
+- External access port: 4000
+- Access URL: http://localhost:4000
 
-# Initialize Dash app
-app = dash.Dash(__name__)
+Docker Commands:
+    Build: docker build -t vpn-dashboard .
+    Run:   docker run -p 4000:8050 vpn-dashboard
 
-# App layout remains the same as before
+Author: [Your Name]
+Date: December 2024
+"""
+
+from dash import Dash, html, dcc  # Import Dash components
+import dash  # For callbacks
+import plotly.graph_objects as go  # For creating graphs
+from VPNmonitor import VPNMonitor  # Custom VPN monitoring class
+
+# Initialize the VPN monitor with mock data for testing
+# Set use_mock=False when connecting to real AWS VPN
+vpn_monitor = VPNMonitor(use_mock=True)
+
+# Initialize the Dash application
+app = Dash(__name__)
+
+# Define the dashboard layout
 app.layout = html.Div([
+    # Dashboard Header
     html.H1('VPN Monitor Dashboard (Test Mode)',
-            style={'textAlign': 'center', 'color': '#2c3e50', 'marginBottom': 30}),
+            style={'textAlign': 'center',
+                   'color': '#2c3e50',
+                   'marginBottom': 30}),
 
+    # VPN Status Section
     html.Div([
         html.H2('VPN Status Overview',
-                style={'color': '#34495e', 'marginBottom': 20}),
+                style={'color': '#34495e',
+                       'marginBottom': 20}),
+        # Container for the status table
         html.Div(id='vpn-status-table'),
+        # Interval component for automatic updates
         dcc.Interval(
             id='interval-component',
-            interval=5000,
+            interval=5000,  # Update every 5 seconds
             n_intervals=0
         )
-    ], style={'margin': '20px', 'padding': '20px', 'backgroundColor': '#f8f9fa', 'borderRadius': '5px'}),
+    ], style={'margin': '20px',
+              'padding': '20px',
+              'backgroundColor': '#f8f9fa',
+              'borderRadius': '5px'}),
 
+    # VPN Metrics Section
     html.Div([
         html.H2('VPN Metrics',
-                style={'color': '#34495e', 'marginBottom': 20}),
+                style={'color': '#34495e',
+                       'marginBottom': 20}),
+        # Container for metrics charts
         html.Div(id='vpn-metrics-charts')
-    ], style={'margin': '20px', 'padding': '20px', 'backgroundColor': '#f8f9fa', 'borderRadius': '5px'})
+    ], style={'margin': '20px',
+              'padding': '20px',
+              'backgroundColor': '#f8f9fa',
+              'borderRadius': '5px'})
 ])
 
 
@@ -38,24 +74,43 @@ app.layout = html.Div([
     dash.Input('interval-component', 'n_intervals')
 )
 def update_status(n):
+    """
+    Callback to update the VPN status table.
+    Updates every time the interval timer triggers.
+
+    Args:
+        n (int): Number of intervals elapsed (not used but required by Dash)
+
+    Returns:
+        html.Table: Formatted table showing VPN status
+    """
     try:
+        # Get current VPN status
         df = vpn_monitor.get_vpn_status()
+
+        # Create and return formatted table
         return html.Table(
-            [html.Tr([html.Th(col, style={'backgroundColor': '#34495e',
-                                          'color': 'white',
-                                          'padding': '12px',
-                                          'textAlign': 'left'})
+            # Table Header
+            [html.Tr([html.Th(col,
+                              style={'backgroundColor': '#34495e',
+                                     'color': 'white',
+                                     'padding': '12px',
+                                     'textAlign': 'left'})
                       for col in df.columns])] +
+            # Table Body
             [html.Tr([
                 html.Td(df.iloc[i][col],
                         style={'padding': '12px',
                                'backgroundColor': '#ffffff',
+                               # Color coding for state column
                                'color': '#2c3e50' if col != 'State' else
                                '#27ae60' if df.iloc[i][col] == 'available' else
                                '#e74c3c'})
                 for col in df.columns
             ]) for i in range(len(df))],
-            style={'width': '100%', 'borderCollapse': 'collapse', 'marginTop': '20px'}
+            style={'width': '100%',
+                   'borderCollapse': 'collapse',
+                   'marginTop': '20px'}
         )
     except Exception as e:
         return html.Div(f"Error fetching VPN status: {str(e)}")
@@ -66,23 +121,38 @@ def update_status(n):
     dash.Input('interval-component', 'n_intervals')
 )
 def update_metrics(n):
+    """
+    Callback to update the VPN metrics charts.
+    Creates a line chart for each VPN connection showing its tunnel state.
+
+    Args:
+        n (int): Number of intervals elapsed (not used but required by Dash)
+
+    Returns:
+        html.Div: Container with charts for each VPN connection
+    """
     try:
+        # Get VPN status to know which VPNs to chart
         df = vpn_monitor.get_vpn_status()
         charts = []
 
+        # Create a chart for each VPN
         for vpn_id in df['VPN ID']:
+            # Get metrics for this VPN
             metrics_df = vpn_monitor.get_vpn_metrics(vpn_id)
 
+            # Create figure
             fig = go.Figure()
             fig.add_trace(go.Scatter(
                 x=metrics_df['Timestamp'],
                 y=metrics_df['TunnelState'],
                 mode='lines+markers',
-                name=f'Tunnel State',
+                name='Tunnel State',
                 line=dict(color='#2980b9'),
                 marker=dict(size=8)
             ))
 
+            # Update layout
             fig.update_layout(
                 title=f'VPN Tunnel State - {vpn_id}',
                 xaxis_title='Time',
@@ -106,22 +176,10 @@ def update_metrics(n):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
-
-# Create figures
-revenue_chart = px.line(df, x='Month', y='Revenue', title='Monthly Revenue')
-expense_chart = px.line(df, x='Month', y='Expenses', title='Monthly Expenses')
-comparison_chart = px.bar(df, x='Month', y=['Revenue', 'Expenses'], barmode='group', title='Revenue vs Expenses')
-
-# App layout
-app.layout = html.Div([
-    html.H1('Business Performance Dashboard'),
-
-    dcc.Graph(figure=revenue_chart),
-    dcc.Graph(figure=expense_chart),
-    dcc.Graph(figure=comparison_chart)
-])
-
-if __name__ == '__main__':
-    app.run_server(debug=True)# Create a virtual environment
+    # Start the Dash server
+    app.run_server(
+        debug=True,  # Enable debug mode for development
+        host='0.0.0.0',  # Listen on all network interfaces (required for Docker)
+        port=8050  # Port inside the container
+    )
 
