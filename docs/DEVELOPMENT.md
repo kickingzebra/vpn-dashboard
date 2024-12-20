@@ -223,11 +223,8 @@ docker stats --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}" vpn-da
 docker inspect --format='{{.State.Health.Status}}' vpn-dashboard
 
 # Manual health check
-curl http://localhost:4000/health
+curl http://localhost:4000/
+
+Happy Coding! 
 ```
 
-Would you like me to:
-1. Add more specific examples for any section?
-2. Include additional troubleshooting scenarios?
-3. Add more monitoring and logging configurations?
-4. Create a separate guide for CI/CD setup?
