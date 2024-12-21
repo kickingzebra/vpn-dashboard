@@ -1,6 +1,5 @@
 name: VPN Dashboard CI/CD
 
-# Define events that trigger the workflow
 on:
   push:
     branches: [ main ]
@@ -9,7 +8,7 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04  # Explicitly specify Ubuntu version
     
     steps:
     - uses: actions/checkout@v2
