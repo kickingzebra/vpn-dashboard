@@ -1,3 +1,4 @@
+
 name: VPN Dashboard CI/CD
 
 on:
@@ -21,13 +22,14 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio aiohttp requests statistics numpy psutil locust
         pip install -r requirements.txt
         
     - name: Run tests
       env:
-        PYTHONPATH: ${{ github.workspace }}/src:${{ github.workspace }}
+        PYTHONPATH: ${{ github.workspace }}
       run: |
-        pytest tests/test_performance.py
+        python -m pytest tests/test_performance.py -v --disable-warnings -m performance
         
     - name: Build Docker image
       run: |
@@ -35,4 +37,4 @@ jobs:
 
     - name: Run Docker container
       run: |
-        docker run -d -p 4000:8050 vpn-dashboard
+        docker run -d -p 4000:8050 vpn-dashboard:w

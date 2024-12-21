@@ -19,7 +19,7 @@ import time
 import requests
 import statistics
 from locust import HttpUser, task, between
-from VPNmonitor import VPNMonitor
+from src.VPNmonitor import VPNMonitor
 import asyncio
 import aiohttp
 import numpy as np
@@ -31,6 +31,7 @@ import logging
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 
 class PerformanceTests:
@@ -244,6 +245,34 @@ def run_performance_suite():
     except Exception as e:
         logger.error(f"Performance test suite failed: {str(e)}")
         raise
+
+# Add at the beginning of the file, with other imports
+from src.VPNmonitor import VPNMonitor  # Update import path
+
+# Add these test functions at the end of the file, before if __name__ == "__main__":
+@pytest.mark.performance
+def test_vpn_monitor_initialization():
+    """Test basic VPN monitor setup"""
+    perf_tests = PerformanceTests()
+    assert perf_tests is not None
+    assert isinstance(perf_tests.vpn_monitor, VPNMonitor)
+
+@pytest.mark.performance
+def test_response_time():
+    """Test VPN status response time"""
+    perf_tests = PerformanceTests()
+    results = perf_tests.test_vpn_status_response_time()
+    assert results is not None
+    assert 'average' in results
+    assert 'p95' in results
+
+@pytest.mark.performance
+def test_memory_usage():
+    """Test memory usage monitoring"""
+    perf_tests = PerformanceTests()
+    results = perf_tests.test_memory_usage()
+    assert results is not None
+    assert results['passed_threshold'] is True
 
 
 if __name__ == "__main__":
