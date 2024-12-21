@@ -10,15 +10,14 @@ COPY requirements.txt .
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source directory
+# Copy src directory
 COPY src/ ./src/
 
-# Copy other necessary files
-COPY tests/ ./tests/
-COPY pytest.ini .
+# Create __init__.py if it doesn't exist
+RUN touch src/__init__.py
 
 # Make port 8050 available
 EXPOSE 8050
 
 # Run the application
-CMD ["python", "src/dashboard.py"]
+CMD ["python", "-m", "src.dashboard"]
