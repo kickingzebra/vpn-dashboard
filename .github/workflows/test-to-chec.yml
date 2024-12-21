@@ -1,0 +1,52 @@
+# Add this job after the regular tests
+  performance-test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install locust psutil aiohttp pytest-asyncio
+
+      - name: Start VPN Dashboard
+        run: |
+          docker run -d --name vpn-dashboard -p 8050:8050 ${{ secrets.DOCKER_HUB_USERNAME }}/vpn-dashboard:latest
+          sleep 10  # Wait for application to start
+
+      - name: Run Performance Tests
+        run: |
+          python -m pytest tests/test_performance.py --junitxml=performance-results.xml
+
+      - name: Run Load Test
+        run: |
+          locust -f tests/test_performance.py --headless -u 50 -r 10 --run-time 1m
+
+      - name: Generate Performance Report
+        run: |
+          echo "Performance Test Results" > performance-report.md
+          cat performance-results.xml >> performance-report.md
+
+      - name: Upload Performance Results
+        uses: actions/upload-artifact@v2
+        with:
+          name: performance-results
+          path: |
+            performance-results.xml
+            performance-report.md
+
+      - name: Check Performance Thresholds
+        run: |
+          python -c "
+          import json
+          with open('performance-results.json') as f:
+              results = json.load(f)
+          assert results['status_response']['average'] < 0.1, 'Response time too high'
+          assert results['concurrent_performance']['requests_per_second'] > 10, 'Throughput too low'
+          "
