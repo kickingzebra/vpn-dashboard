@@ -10,12 +10,15 @@ COPY requirements.txt .
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application files
-COPY VPNmonitor.py .
-COPY dashboard.py .
+# Copy source directory
+COPY src/ ./src/
+
+# Copy other necessary files
+COPY tests/ ./tests/
+COPY pytest.ini .
 
 # Make port 8050 available
 EXPOSE 8050
 
 # Run the application
-CMD ["python", "dashboard.py"]
+CMD ["python", "src/dashboard.py"]
