@@ -1,52 +1,283 @@
-# VPN Dashboard Docker Configuration
+# VPN Dashboard Development Guide
 
 ## Overview
-This repository contains a Docker-based VPN monitoring dashboard that provides real-time status and metrics visualization.
+A comprehensive dashboard for monitoring AWS VPN connections, built with Python, Dash, and Docker.
 
-## Configuration Details
-- Internal Container Port: 8050
-- External Access Port: 4000
-- Dashboard URL: http://localhost:4000
+## Architecture Overview
 
-## Quick Start
+### Directory Structure
+```
+python-dashboard/
+├── .github/
+│   └── workflows/          # CI/CD configurations
+├── tests/                  # Test files
+├── Dockerfile             # Container configuration
+├── VPNmonitor.py         # VPN monitoring logic
+├── dashboard.py          # Main dashboard application
+├── requirements.txt      # Python dependencies
+└── docker-compose.yml    # Docker compose configuration
+```
 
-### Build the Docker Image
+### System Component Flow
+```mermaid
+flowchart TD
+    subgraph "Main Application"
+        A[dashboard.py] --> B[VPNmonitor.py]
+        A --> C[test_monitor.py]
+    end
+
+    subgraph "Testing & CI/CD"
+        D[tests/test_performance.py] --> B
+        E[.github/workflows/main.yml] --> |triggers| D
+        F[scripts/deploy.sh] --> |deploys| A
+    end
+
+    subgraph "Docker Container"
+        G[Dockerfile] --> |builds| A
+        H[docker-compose.yml] --> |configures| G
+    end
+
+    subgraph "AWS Integration"
+        B --> |connects to| I[AWS VPN Service]
+        B --> |retrieves metrics| J[AWS CloudWatch]
+    end
+
+    subgraph "Documentation"
+        K[docs/DEVELOPMENT.md]
+        L[docs/CI_CD_GUIDE.md]
+        M[README.md]
+    end
+```
+
+### Component Descriptions
+
+#### Core Application Files
+- **dashboard.py**: Main entry point
+  - Creates web interface
+  - Handles data visualization
+  - Manages user interactions
+
+- **VPNmonitor.py**: VPN monitoring logic
+  - AWS service integration
+  - VPN status monitoring
+  - Metrics collection
+
+- **test_monitor.py**: Test tracking
+  - Monitors test execution
+  - Stores test results
+  - Provides testing metrics
+
+## Development Setup
+
+### Prerequisites
+* Python 3.9+
+* Docker Desktop
+* Git
+* PyCharm (recommended) or other IDE
+
+### Local Development Environment
+1. **Create Virtual Environment**:
+```bash
+# Create virtual environment
+python -m venv dashboard_env
+
+# Activate virtual environment
+# On Windows:
+dashboard_env\Scripts\activate
+# On macOS/Linux:
+source dashboard_env/bin/activate
+```
+
+2. **Install Dependencies**:
+```bash
+pip install -r requirements.txt
+```
+
+3. **Environment Variables**:
+```bash
+# Development
+export FLASK_ENV=development
+export FLASK_DEBUG=1
+export VPN_MOCK_DATA=true
+```
+
+## Docker Configuration
+
+### Basic Docker Commands
+```bash
+# Build image
+docker build -t vpn-dashboard .
+
+# Run container
+docker run -p 4000:8050 vpn-dashboard
+
+# View logs
+docker logs vpn-dashboard
+
+# Stop container
+docker stop vpn-dashboard
+
+# Remove container
+docker rm vpn-dashboard
+```
+
+### Port Configuration
+* Default internal port: 8050
+* Default external port: 4000
+* Alternative port mapping: `docker run -p <host-port>:8050 vpn-dashboard`
+
+### Volume Mounting (for development)
+```bash
+docker run -p 4000:8050 -v $(pwd):/app vpn-dashboard
+```
+
+## Testing
+
+### Unit Tests
+```bash
+# Run all tests
+pytest tests/
+
+# Run specific test file
+pytest tests/test_vpn_monitor.py
+
+# Run with coverage
+pytest --cov=. tests/
+```
+
+### Performance Tests
+```bash
+# Run performance tests
+pytest tests/test_performance.py
+```
+
+## Troubleshooting Guide
+
+### Common Issues and Solutions
+
+1. **Port Already in Use**
+```bash
+# Check what's using the port
+lsof -i :4000
+
+# Kill process using the port
+kill -9 
+
+# Or use alternative port
+docker run -p 5000:8050 vpn-dashboard
+```
+
+2. **Docker Connection Issues**
+```bash
+# Check Docker status
+docker info
+
+# Restart Docker Desktop
+# Or from command line:
+killall Docker && open /Applications/Docker.app
+```
+
+3. **Dashboard Not Loading**
+* Check container logs: `docker logs vpn-dashboard`
+* Verify network settings: `docker network inspect bridge`
+* Check firewall settings
+
+4. **Performance Issues**
+* Monitor container resources: `docker stats vpn-dashboard`
+* Check system resources: `top` or Activity Monitor
+* Review performance test results
+
+## Maintenance Procedures
+
+### Regular Updates
+1. Pull latest code:
+```bash
+git pull origin main
+```
+
+2. Update dependencies:
+```bash
+pip install -r requirements.txt --upgrade
+```
+
+3. Rebuild container:
 ```bash
 docker build -t vpn-dashboard .
 ```
 
-### Run the Container
+### Backup Procedures
+1. Export container data:
 ```bash
-docker run -p 4000:8050 vpn-dashboard
+docker export vpn-dashboard > vpn-dashboard-backup.tar
 ```
 
-## Port Configuration
-- The application runs on port 8050 inside the container
-- Port 4000 is mapped to access the dashboard from your host machine
-- If port 4000 is in use, you can use a different port:
-  ```bash
-  docker run -p <alternative-port>:8050 vpn-dashboard
-  ```
+2. Save Docker image:
+```bash
+docker save vpn-dashboard > vpn-dashboard-image.tar
+```
 
-## Development Setup
-1. Clone the repository
-2. Install Docker Desktop
-3. Build and run the container
-4. Access the dashboard at http://localhost:4000
+## Development Best Practices
 
-## Files
-- `dashboard.py`: Main application code
-- `VPNmonitor.py`: VPN monitoring functionality
-- `Dockerfile`: Container configuration
-- `requirements.txt`: Python dependencies
+### Code Style
+* Follow PEP 8 guidelines
+* Use type hints
+* Document all functions and classes
+* Add comments for complex logic
 
-## Troubleshooting
-- If port 4000 is already in use, try a different port
-- Ensure Docker Desktop is running
-- Check container logs: `docker logs vpn-dashboard`
+### Git Workflow
+1. Create feature branch:
+```bash
+git checkout -b feature/new-feature
+```
 
-## Updates and Maintenance
-1. Make code changes
-2. Rebuild Docker image
-3. Stop old container
-4. Run new container
+2. Make changes and commit:
+```bash
+git add .
+git commit -m "Description of changes"
+```
+
+3. Push changes:
+```bash
+git push origin feature/new-feature
+```
+
+### Testing Guidelines
+* Write tests for new features
+* Maintain 80%+ code coverage
+* Include performance tests for critical paths
+* Test Docker builds locally before pushing
+
+### Deployment Steps
+1. Test locally
+2. Update version numbers
+3. Run full test suite
+4. Build and test Docker image
+5. Push to repository
+6. Monitor deployment
+
+## Monitoring and Logging
+
+### Container Monitoring
+```bash
+# View container metrics
+docker stats vpn-dashboard
+
+# Export metrics
+docker stats --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}" vpn-dashboard
+```
+
+### Application Logging
+* Logs location: `/app/logs`
+* View logs: `docker exec vpn-dashboard cat /app/logs/app.log`
+* Log rotation: Configured for 7 days
+
+### Health Checks
+```bash
+# Check container health
+docker inspect --format='{{.State.Health.Status}}' vpn-dashboard
+
+# Manual health check
+curl http://localhost:4000/
+```
+
+Happy Coding! 
