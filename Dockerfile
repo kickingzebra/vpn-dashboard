@@ -1,23 +1,18 @@
 # Use official Python runtime as a base image
 FROM python:3.9-slim
 
-# Set working directory in container
+# Set working directory
 WORKDIR /app
 
-# Copy requirements file
+# Copy requirements first for cache efficiency
 COPY requirements.txt .
-
-# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy src directory
-COPY src/ ./src/
+# Copy the entire project structure
+COPY . .
 
-# Create __init__.py if it doesn't exist
-RUN touch src/__init__.py
-
-# Make port 8050 available
+# Expose the port
 EXPOSE 8050
 
-# Run the application
+# Run the dashboard
 CMD ["python", "-m", "src.dashboard"]
