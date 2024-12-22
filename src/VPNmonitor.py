@@ -7,27 +7,38 @@ from datetime import datetime, timedelta
 import logging
 import random
 
-# Make boto3 import optional
-try:
-    import boto3
-    AWS_AVAILABLE = True
-except ImportError:
-    AWS_AVAILABLE = False
-    print("AWS boto3 not available, using mock data only")
-
 class VPNMonitor:
     def __init__(self, use_mock=True, region='us-east-1'):
-        self.use_mock = use_mock or not AWS_AVAILABLE
+        self.use_mock = use_mock
         self.region = region
         self.logger = logging.getLogger(__name__)
-        
-        if not self.use_mock and AWS_AVAILABLE:
-            try:
-                self.ec2_client = boto3.client('ec2', region_name=region)
-                self.cloudwatch = boto3.client('cloudwatch', region_name=region)
-                self.logger.info(f"Connected to AWS in region {region}")
-            except Exception as e:
-                self.logger.error(f"Failed to connect to AWS: {str(e)}")
-                self.use_mock = True
 
-    # Rest of your VPNMonitor class implementation...
+    def get_vpn_status(self):
+        """
+        Get VPN connection status
+        Returns:
+            pandas.DataFrame: VPN status information
+        """
+        if self.use_mock:
+            # Return mock data
+            mock_data = [
+                {
+                    'VPN ID': 'vpn-123456a',
+                    'State': 'available',
+                    'Type': 'ipsec.1',
+                    'Static Route Only': True,
+                    'Last Status Change': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                },
+                {
+                    'VPN ID': 'vpn-789012b',
+                    'State': 'available',
+                    'Type': 'ipsec.1',
+                    'Static Route Only': False,
+                    'Last Status Change': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                }
+            ]
+            return pd.DataFrame(mock_data)
+        else:
+            # Real AWS implementation would go here
+            return pd.DataFrame()
+
