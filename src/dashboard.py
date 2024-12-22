@@ -1,188 +1,173 @@
-# Add to your imports
-from dash import html, dcc, callback_context
+"""
+Enhanced VPN Dashboard
+Features comprehensive monitoring of VPN status, performance, and security
+"""
+
+from dash import Dash, html, dcc
+import dash
+from dash.dependencies import Input, Output
 import plotly.graph_objects as go
+import plotly.express as px
 from datetime import datetime, timedelta
-from test_monitor import TestMonitor
+from VPNmonitor import VPNMonitor
 
-# Initialize test monitor
-test_monitor = TestMonitor()
+# Initialize VPN monitor
+vpn_monitor = VPNMonitor(use_mock=True)  # Set to False for real AWS connection
 
-# Add to your layout
+# Initialize Dash app
+app = Dash(__name__)
+
+# Create the layout
 app.layout = html.Div([
-    # ... existing layout ...
-
-    # Add tab container
-    dcc.Tabs([
-        dcc.Tab(label='VPN Status', children=[
-            # Move your existing status content here
-        ]),
-
-        dcc.Tab(label='Test Results', children=[
-            html.Div([
-                html.H2('VPN Test Results',
-                        style={'color': '#34495e', 'marginBottom': 20}),
-
-                # Test Summary Cards
-                html.Div([
-                    html.Div(id='test-summary-cards',
-                            className='summary-cards'),
-
-                    # Time Range Selector
-                    dcc.Dropdown(
-                        id='time-range-selector',
-                        options=[
-                            {'label': 'Last 24 Hours', 'value': 24},
-                            {'label': 'Last 7 Days', 'value': 168},
-                            {'label': 'Last 30 Days', 'value': 720}
-                        ],
-                        value=24,
-                        style={'width': '200px', 'marginBottom': '20px'}
-                    ),
-
-                    # Test Results Graph
-                    dcc.Graph(id='test-results-graph'),
-
-                    # Detailed Test Results Table
-                    html.Div(id='test-results-table')
-                ])
+    html.H1('VPN Monitoring Dashboard',
+            style={'textAlign': 'center', 'color': '#2c3e50', 'marginBottom': 30}),
+    
+    # Active Sessions Section
+    html.Div([
+        html.H2('Active Sessions',
+                style={'color': '#34495e', 'marginBottom': 20}),
+        html.Div(id='active-sessions-table'),
+        dcc.Graph(id='sessions-map')
+    ], style={'margin': '20px', 'padding': '20px', 'backgroundColor': '#f8f9fa', 'borderRadius': '5px'}),
+    
+    # Performance Metrics Section
+    html.Div([
+        html.H2('Performance Metrics',
+                style={'color': '#34495e', 'marginBottom': 20}),
+        dcc.Tabs([
+            dcc.Tab(label='Bandwidth', children=[
+                dcc.Graph(id='bandwidth-graph')
+            ]),
+            dcc.Tab(label='Latency', children=[
+                dcc.Graph(id='latency-graph')
+            ]),
+            dcc.Tab(label='Resource Usage', children=[
+                dcc.Graph(id='resource-usage-graph')
             ])
         ])
-    ])
+    ], style={'margin': '20px', 'padding': '20px', 'backgroundColor': '#f8f9fa', 'borderRadius': '5px'}),
+    
+    # Security Events Section
+    html.Div([
+        html.H2('Security Events',
+                style={'color': '#34495e', 'marginBottom': 20}),
+        html.Div(id='security-events-table'),
+        dcc.Graph(id='security-events-timeline')
+    ], style={'margin': '20px', 'padding': '20px', 'backgroundColor': '#f8f9fa', 'borderRadius': '5px'}),
+    
+    # Compliance Status Section
+    html.Div([
+        html.H2('Compliance & Security',
+                style={'color': '#34495e', 'marginBottom': 20}),
+        html.Div(id='compliance-status')
+    ], style={'margin': '20px', 'padding': '20px', 'backgroundColor': '#f8f9fa', 'borderRadius': '5px'}),
+    
+    # Update interval
+    dcc.Interval(
+        id='update-interval',
+        interval=5000,  # 5 seconds
+        n_intervals=0
+    )
 ])
 
-# Add callbacks for test results
+# Callback for active sessions
 @app.callback(
-    [Output('test-summary-cards', 'children'),
-     Output('test-results-graph', 'figure'),
-     Output('test-results-table', 'children')],
-    [Input('time-range-selector', 'value'),
-     Input('interval-component', 'n_intervals')]
+    [Output('active-sessions-table', 'children'),
+     Output('sessions-map', 'figure')],
+    Input('update-interval', 'n_intervals')
 )
-def update_test_results(hours, n):
-    """Update all test result components"""
-    # Get test data
-    summary = test_monitor.get_test_summary()
-    recent_results = test_monitor.get_recent_results(hours=hours)
-
-    # Create summary cards
-    summary_cards = []
-    for test_type, stats in summary.items():
-        card = html.Div([
-            html.H3(test_type.replace('_', ' ').title()),
-            html.P(f"Success Rate: {stats['success_rate']:.1f}%"),
-            html.P(f"Total Tests: {stats['total']}"),
-            html.P(f"Passed: {stats['passed']}"),
-            html.P(f"Failed: {stats['failed']}")
-        ], className='summary-card')
-        summary_cards.append(card)
-
-    # Create timeline graph
-    fig = go.Figure()
-    for test_type, results in recent_results.items():
-        timestamps = [datetime.fromisoformat(r['timestamp']) for r in results]
-        statuses = [1 if r['status'] == 'passed' else 0 for r in results]
-
-        fig.add_trace(go.Scatter(
-            x=timestamps,
-            y=statuses,
-            mode='markers',
-            name=test_type.replace('_', ' ').title(),
-            marker=dict(
-                size=10,
-                symbol='circle',
-                color=['green' if s == 1 else 'red' for s in statuses]
-            )
-        ))
-
-    fig.update_layout(
-        title='Test Results Timeline',
-        xaxis_title='Time',
-        yaxis=dict(
-            tickmode='array',
-            ticktext=['Failed', 'Passed'],
-            tickvals=[0, 1]
-        ),
-        plot_bgcolor='white'
+def update_sessions(n):
+    sessions = vpn_monitor.get_active_sessions()
+    
+    # Create sessions table
+    table = html.Table(
+        [html.Tr([html.Th(col) for col in ['User', 'IP', 'Duration', 'Location']])] +
+        [html.Tr([
+            html.Td(session.username),
+            html.Td(session.ip_address),
+            html.Td(str(session.duration)),
+            html.Td(f"{session.location['city']}, {session.location['country']}")
+        ]) for session in sessions],
+        style={'width': '100%', 'marginBottom': '20px'}
     )
+    
+    # Create world map
+    map_fig = px.scatter_geo(
+        pd.DataFrame([s.location for s in sessions]),
+        lat='latitude',
+        lon='longitude',
+        hover_name='city',
+        projection='natural earth'
+    )
+    
+    return table, map_fig
 
-    # Create detailed table
-    table_header = [
-        html.Thead(html.Tr([
-            html.Th('Timestamp'),
-            html.Th('Test Type'),
-            html.Th('Test Name'),
-            html.Th('Status'),
-            html.Th('Details')
-        ]))
-    ]
+# Callback for performance metrics
+@app.callback(
+    [Output('bandwidth-graph', 'figure'),
+     Output('latency-graph', 'figure'),
+     Output('resource-usage-graph', 'figure')],
+    Input('update-interval', 'n_intervals')
+)
+def update_performance(n):
+    metrics = vpn_monitor.get_performance_metrics()
+    
+    # Bandwidth graph
+    bandwidth_fig = go.Figure()
+    bandwidth_fig.add_trace(go.Scatter(
+        x=metrics['bandwidth']['timestamps'],
+        y=metrics['bandwidth']['inbound'],
+        name='Inbound'
+    ))
+    bandwidth_fig.add_trace(go.Scatter(
+        x=metrics['bandwidth']['timestamps'],
+        y=metrics['bandwidth']['outbound'],
+        name='Outbound'
+    ))
+    
+    # Latency graph
+    latency_fig = go.Figure()
+    latency_fig.add_trace(go.Scatter(
+        x=metrics['latency']['timestamps'],
+        y=metrics['latency']['values'],
+        name='Latency (ms)'
+    ))
+    
+    # Resource usage graph
+    resource_fig = go.Figure()
+    resource_fig.add_trace(go.Bar(
+        x=['CPU', 'Memory', 'Disk'],
+        y=[metrics['resource_utilization']['cpu'],
+           metrics['resource_utilization']['memory'],
+           metrics['resource_utilization']['disk']],
+        name='Usage %'
+    ))
+    
+    return bandwidth_fig, latency_fig, resource_fig
 
-    rows = []
-    for test_type, results in recent_results.items():
-        for result in results:
-            row = html.Tr([
-                html.Td(datetime.fromisoformat(result['timestamp']).strftime('%Y-%m-%d %H:%M:%S')),
-                html.Td(test_type.replace('_', ' ').title()),
-                html.Td(result['test_name']),
-                html.Td(result['status'].title()),
-                html.Td(str(result['details']))
-            ])
-            rows.append(row)
-
-    table_body = [html.Tbody(rows)]
-    table = html.Table(table_header + table_body)
-
-    return summary_cards, fig, table
-
-# Add some CSS for the test results page
-app.index_string = '''
-<!DOCTYPE html>
-<html>
-    <head>
-        {%metas%}
-        <title>VPN Dashboard</title>
-        {%favicon%}
-        {%css%}
-        <style>
-            .summary-cards {
-                display: flex;
-                justify-content: space-around;
-                margin-bottom: 20px;
-            }
-            .summary-card {
-                background-color: white;
-                padding: 20px;
-                border-radius: 8px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                width: 200px;
-                text-align: center;
-            }
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-top: 20px;
-            }
-            th, td {
-                padding: 12px;
-                text-align: left;
-                border-bottom: 1px solid #ddd;
-            }
-            th {
-                background-color: #34495e;
-                color: white;
-            }
-            tr:nth-child(even) {
-                background-color: #f8f9fa;
-            }
-        </style>
-    </head>
-    <body>
-        {%app_entry%}
-        <footer>
-            {%config%}
-            {%scripts%}
-            {%renderer%}
-        </footer>
-    </body>
-</html>
-'''
-
+# Callback for security events
+@app.callback(
+    [Output('security-events-table', 'children'),
+     Output('security-events-timeline', 'figure')],
+    Input('update-interval', 'n_intervals')
+)
+def update_security_events(n):
+    events = vpn_monitor.get_security_events()
+    
+    # Create events table
+    table = html.Table(
+        [html.Tr([html.Th(col) for col in ['Time', 'Event', 'User', 'Details']])] +
+        [html.Tr([
+            html.Td(event['timestamp'].strftime('%Y-%m-%d %H:%M:%S')),
+            html.Td(event['event_type']),
+            html.Td(event['username']),
+            html.Td(event['details'])
+        ]) for event in events],
+        style={'width': '100%', 'marginBottom': '20px'}
+    )
+    
+    # Create timeline
+    timeline_fig = go.Figure()
+    timeline_fig.add_trace(go.Scatter(
+        x=[e['timestamp'] for e in events],
+        y=[e['event_type']
